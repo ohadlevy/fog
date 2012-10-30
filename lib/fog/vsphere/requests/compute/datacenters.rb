@@ -5,10 +5,14 @@ module Fog
         
         # Returns an array of all available datacenters in your cluster.
         #
-        def datacenters
+        def datacenters(return_hash = false)
           @datacenters ||= datacenters_reload
           # Hide the values which are the RbVmomi instances
-          @datacenters.keys
+          if return_hash
+            @datacenters
+          else
+            @datacenters.keys            
+          end
         end
 
         private

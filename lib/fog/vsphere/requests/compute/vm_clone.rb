@@ -174,6 +174,30 @@ module Fog
           # confirm nil if nil or option is not set
           datastore_obj ||= nil
 
+          # Options['network']
+          # Build up the config spec
+          if ( options.has_key?('network_label') )
+            network_obj = datacenter_obj.networkFolder.find(options['network_label'])
+            config_spec_operation = RbVmomi::VIM::VirtualDeviceConfigSpecOperation('edit')
+            nic_backing_info = RbVmomi::VIM::VirtualEthernetCardNetworkBackingInfo(:deviceName => options['network_label'])
+              #:deviceName => "Network adapter 1",
+              #:network => network_obj)
+            connectable = RbVmomi::VIM::VirtualDeviceConnectInfo(
+              :allowGuestControl => true,
+              :connected => true,
+              :startConnected => true)
+            device = RbVmomi::VIM::VirtualE1000(
+              :backing => nic_backing_info,
+              :deviceInfo => RbVmomi::VIM::Description(:label => "Network adapter 1", :summary => options['network_label']),
+              :key => options['network_adapter_device_key'],
+              :connectable => connectable)
+            device_spec = RbVmomi::VIM::VirtualDeviceConfigSpec(
+              :operation => config_spec_operation,
+              :device => device)
+            virtual_machine_config_spec = RbVmomi::VIM::VirtualMachineConfigSpec(
+              :deviceChange => [device_spec])
+          end
+
           # Options['customization_spec']
           # Build up all the crappy tiered objects like the perl method
           # Collect your variables ifset (writing at 11pm revist me)
@@ -249,6 +273,7 @@ module Fog
           end
           # And the clone specification
           clone_spec = RbVmomi::VIM.VirtualMachineCloneSpec(:location => relocation_spec,
+                                                            :config => virtual_machine_config_spec,
                                                             :customization => customization_spec,
                                                             :powerOn  => options.has_key?('power_on') ? options['power_on'] : true,
                                                             :template => false)
