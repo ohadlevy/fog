@@ -110,6 +110,17 @@ module Fog
         #   * 'datastore'<~String> - The datastore you'd like to use.
         #       (datacenterObj.datastoreFolder.find('name') in API)
         #   * 'transform'<~String> - Not documented - see http://www.vmware.com/support/developer/vc-sdk/visdk41pubs/ApiReference/vim.vm.RelocateSpec.html
+        #   * customization_spec<~Hash>: Options are marked as required if you
+        #     use this customization_spec. Static IP Settings not configured.
+        #     This only support cloning and setting DHCP on the first interface
+        #     * 'domain'<~String> - *REQUIRED* This is put into 
+        #       /etc/resolve.conf (we hope)
+        #     * 'hostname'<~String> - Hostname of the Guest Os - default is 
+        #       options['name']
+        #     * 'hw_utc_clock'<~Boolean> - *REQUIRED* Is hardware clock UTC? 
+        #       Default true
+        #     * 'time_zone'<~String> - *REQUIRED* Only valid linux options 
+        #       are valid - example: 'America/Denver'
         #
         def vm_clone(options = {})
           # Option handling
@@ -123,7 +134,7 @@ module Fog
           # Ugly, sorry
           datacenter_obj = @datacenters[options['template_path'].split('/').tap{|a| a.shift 2}[0]]
 
-          # Option['template_path']<~String>
+          # Options['template_path']<~String>
           # Grab the folder Object for the Template
           template_folder = find_folder_obj(options['template_path'])
           # The template name.  The remaining elements are the folders in the
@@ -132,12 +143,12 @@ module Fog
           # Now find the template itself using the efficient find method
           vm_mob_ref = template_folder.find(template_name, RbVmomi::VIM::VirtualMachine)
 
-          # Option['dest_folder']<~String>
+          # Options['dest_folder']<~String>
           # Grab the destination folder object if it exists else use cloned mach
           dest_folder = find_folder_obj(options['dest_folder'], false) if options.has_key?('dest_folder')
           dest_folder ||= vm_mob_ref.parent
 
-          # Option['resource_pool']<~Array>
+          # Options['resource_pool']<~Array>
           # Now find _a_ resource pool to use for the clone if one is not specified
           if ( options.has_key?('resource_pool') && options['resource_pool'].is_a?(Array) && options['resource_pool'].length == 2 )
             cluster_name = options['resource_pool'][0]
@@ -157,11 +168,42 @@ module Fog
           # already set. 
           resource_pool ||= vm_mob_ref.resourcePool.nil? ? esx_host.parent.resourcePool : vm_mob_ref.resourcePool
 
-          # Option['datastore']<~String>
+          # Options['datastore']<~String>
           # Grab the datastore object if option is set
           datastore_obj = find_datastore_obj(datacenter_obj, options['datastore']) if options.has_key?('datastore')
           # confirm nil if nil or option is not set
           datastore_obj ||= nil
+
+          # Options['customization_spec']
+          # Build up all the crappy tiered objects like the perl method
+          # Collect your variables ifset (writing at 11pm revist me)
+          if ( options.has_key?('customization_spec') )
+            cust_options = options['customization_spec']
+            cust_domain = cust_options['domain']
+            cust_hostname = RbVmomi::VIM::CustomizationFixedName.new(:name => cust_options['hostname']) if cust_options.has_key?('hostname')
+            cust_hostname ||= RbVmomi::VIM::CustomizationFixedName.new(:name => options['name'])
+            cust_hwclockutc = cust_options['hw_clock_utc']
+            cust_timezone = cust_options['time_zone']
+            # Start Building objects
+            # Build the CustomizationLinuxPrep Object
+            cust_prep = RbVmomi::VIM::CustomizationLinuxPrep.new(
+              :domain => cust_domain,
+              :hostName => cust_hostname,
+              :hwClockUTC => cust_hwclockutc,
+              :timeZone => cust_timezone,)
+            # Build the Dhcp Generator Object 
+            cust_fixed_ip = RbVmomi::VIM::CustomizationDhcpIpGenerator.new()
+            # Build the custom_ip_settings Object
+            cust_ip_setting = RbVmomi::VIM::CustomizationIPSettings.new(:ip => cust_fixed_ip)
+            # Build the Custom Adapter Mapping Supports only one eth right now
+            cust_adapter_mapping = [RbVmomi::VIM::CustomizationAdapterMapping.new(:adapter => cust_ip_setting)]
+            # Build the customization Spec
+            customization_spec = RbVmomi::VIM::CustomizationSpec.new(
+              :identity => cust_prep,
+              :globalIPSettings => RbVmomi::VIM::CustomizationGlobalIPSettings.new(),
+              :nicSettingMap => cust_adapter_mapping)
+          end
+          customization_spec ||= nil
 
           # Begin Building Objects to CloneVM_Task - Below here is all action
           # on built parameters. 
@@ -207,6 +249,7 @@ module Fog
           end
           # And the clone specification
           clone_spec = RbVmomi::VIM.VirtualMachineCloneSpec(:location => relocation_spec,
+                                                            :customization => customization_spec,
                                                             :powerOn  => options.has_key?('power_on') ? options['power_on'] : true,
                                                             :template => false)
           task = vm_mob_ref.CloneVM_Task(:folder => dest_folder,
