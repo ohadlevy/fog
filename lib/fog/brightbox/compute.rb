@@ -7,11 +7,25 @@ module Fog
 
       API_URL = "https://api.gb1.brightbox.com/"
 
+      # Client credentials
       requires :brightbox_client_id, :brightbox_secret
-      recognizes :brightbox_auth_url, :brightbox_api_url, :persistent
+
+      # API endpoint settings
+      recognizes :brightbox_auth_url, :brightbox_api_url
+
+      # User credentials (still requires client details)
+      recognizes :brightbox_username, :brightbox_password, :brightbox_account
+
+      # Excon connection settings
+      recognizes :persistent
 
       model_path 'fog/brightbox/models/compute'
-      model       :account # Singular resource, no collection
+      collection  :accounts
+      model       :account
+      collection  :applications
+      model       :application
+      collection  :api_clients
+      model       :api_client
       collection  :servers
       model       :server
       collection  :server_groups
@@ -41,6 +55,7 @@ module Fog
       request :apply_to_firewall_policy
       request :remove_firewall_policy
       request :create_api_client
+      request :create_application
       request :create_cloud_ip
       request :create_firewall_policy
       request :create_firewall_rule
@@ -49,6 +64,7 @@ module Fog
       request :create_server
       request :create_server_group
       request :destroy_api_client
+      request :destroy_application
       request :destroy_cloud_ip
       request :destroy_firewall_policy
       request :destroy_firewall_rule
@@ -58,18 +74,23 @@ module Fog
       request :destroy_server_group
       request :get_account
       request :get_api_client
+      request :get_application
+      request :get_authenticated_user
       request :get_cloud_ip
       request :get_firewall_policy
       request :get_firewall_rule
       request :get_image
       request :get_interface
       request :get_load_balancer
+      request :get_scoped_account
       request :get_server
       request :get_server_group
       request :get_server_type
       request :get_user
       request :get_zone
+      request :list_accounts
       request :list_api_clients
+      request :list_applications
       request :list_cloud_ips
       request :list_firewall_policies
       request :list_images
@@ -86,6 +107,7 @@ module Fog
       request :remove_servers_server_group
       request :reset_ftp_password_account
       request :reset_secret_api_client
+      request :reset_secret_application
       request :shutdown_server
       request :snapshot_server
       request :start_server
@@ -93,10 +115,12 @@ module Fog
       request :unmap_cloud_ip
       request :update_account
       request :update_api_client
+      request :update_application
       request :update_cloud_ip
       request :update_firewall_rule
       request :update_image
       request :update_load_balancer
+      request :update_scoped_account
       request :update_server
       request :update_server_group
       request :update_user
@@ -145,22 +169,37 @@ module Fog
           @connection_options   = options[:connection_options] || {}
           @brightbox_client_id  = options[:brightbox_client_id] || Fog.credentials[:brightbox_client_id]
           @brightbox_secret     = options[:brightbox_secret] || Fog.credentials[:brightbox_secret]
+          @brightbox_username   = options[:brightbox_username] || Fog.credentials[:brightbox_username]
+          @brightbox_password   = options[:brightbox_password] || Fog.credentials[:brightbox_password]
+          @brightbox_account    = options[:brightbox_account] || Fog.credentials[:brightbox_account]
           @persistent           = options[:persistent] || false
           @connection = Fog::Connection.new(@api_url, @persistent, @connection_options)
         end
 
-        def request(method, url, expected_responses, options = nil)
+        def request(method, url, expected_responses, options = {})
           request_options = {
             :method   => method.to_s.upcase,
             :path     => url,
             :expects  => expected_responses
           }
-          request_options[:body] = Fog::JSON.encode(options) unless options.nil?
+          options[:account_id] = @brightbox_account if options[:account_id].nil? && @brightbox_account
+          request_options[:body] = Fog::JSON.encode(options) unless options.empty?
           make_request(request_options)
         end
 
+        # Returns the scoped account being used for requests
+        #
+        # API Clients:: This is the owning account
+        # User Apps::   This is the account specified by either +account_id+
+        #               option on a connection or the +brightbox_account+
+        #               setting in your configuration
+        #
+        # === Returns:
+        #
+        # <tt>Fog::Compute::Brightbox::Account</tt>
+        #
         def account
-          Fog::Compute::Brightbox::Account.new(get_account)
+          Fog::Compute::Brightbox::Account.new(get_scoped_account)
         end
 
       private
@@ -168,7 +207,17 @@ module Fog
           auth_url = options[:brightbox_auth_url] || @auth_url
 
           connection = Fog::Connection.new(auth_url)
-          @authentication_body = Fog::JSON.encode({'client_id' => @brightbox_client_id, 'grant_type' => 'none'})
+          authentication_body_hash = if @brightbox_username && @brightbox_password
+            {
+              'client_id' => @brightbox_client_id,
+              'grant_type' => 'password',
+              'username' => @brightbox_username,
+              'password' => @brightbox_password
+            }
+          else
+            {'client_id' => @brightbox_client_id, 'grant_type' => 'none'}
+          end
+          @authentication_body = Fog::JSON.encode(authentication_body_hash)
 
           response = connection.request({
             :path => "/token",
