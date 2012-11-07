@@ -20,8 +20,6 @@ module Fog
         attribute :name
         # UUID may be the same from VM to VM if the user does not select (I copied it)
         attribute :uuid
-        # Instance UUID should be unique across a vCenter deployment.
-        attribute :instance_uuid
         attribute :hostname
         attribute :operatingsystem
         attribute :ipaddress,     :aliases => 'public_ip_address'
@@ -30,12 +28,24 @@ module Fog
         attribute :tools_version
         attribute :mac_addresses, :aliases => 'macs'
         attribute :hypervisor,    :aliases => 'host'
-        attribute :is_a_template
         attribute :connection_state
         attribute :mo_ref
         attribute :path
         attribute :memory_mb
         attribute :cpus
+        attribute :interfaces
+        attribute :volumes
+        attribute :overall_status, :aliases => 'status'
+        attribute :cluster
+        attribute :datacenter
+        attribute :resource_pool
+        attribute :instance_uuid # move this --> id
+        attribute :guest_id
+
+        def initialize(attributes={} )
+          super defaults.merge(attributes)
+          self.instance_uuid ||= id
+        end
 
         def vm_reconfig_memory(options = {})
           requires :instance_uuid, :memory
@@ -81,14 +91,6 @@ module Fog
           connection.vm_migrate('instance_uuid' => instance_uuid, 'priority' => options[:priority])
         end
 
-        def create(options ={})
-          requires :name, :path
-          new_vm = self.class.new(create_results['vm_attributes'])
-          new_vm.collection = self.collection
-          new_vm.connection = self.connection
-          new_vm
-        end
-
         def clone(options = {})
           requires :name, :path
           # Convert symbols to strings
@@ -129,6 +131,54 @@ module Fog
 
         def memory
           memory_mb * 1024 * 1024
+        end
+
+        def mac
+          interfaces.first.mac unless interfaces.empty?
+        end
+
+        def interfaces
+          if attributes[:interfaces].is_a?(Array) && attributes[:interfaces].first.is_a?(Fog::Compute::Vsphere::Interfaces)
+            attributes[:interfaces]
+          else
+            self.attributes[:interfaces] = connection.interfaces.new(
+              :connection => connection,
+              :vm => self
+            )
+          end
+        end
+
+        def volumes
+          self.attributes[:volumes] ||= id.nil? ? [] : Fog::Compute::Vsphere::Volumes.new(
+            :connection => connection,
+            :vm => self
+          )
+        end
+
+        def save
+          requires :name, :cluster, :datacenter
+          if identity
+            raise "update is not supported yet"
+           # connection.update_vm(attributes)
+          else
+            self.id = connection.create_vm(attributes)
+          end
+          reload
+        end
+
+        def new?
+          id.nil?
+        end
+
+        private
+
+        def defaults
+          {
+            :cpus          => 1,
+            :memory_mb     => 512,
+            :guest_id      => 'otherGuest',
+            :instance_uuid => id,
+          }
         end
 
       end

@@ -88,7 +88,9 @@ module Fog
           # Find each datacenter
           datacenters = @connection.rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter)
           # Next, search the "vmFolder" inventory of each data center:
-          datacenters.map {|dc| dc.vmFolder.childEntity.grep(RbVmomi::VIM::VirtualMachine) }.flatten
+          vms=datacenters.map {|dc| dc.vmFolder.childEntity.grep(RbVmomi::VIM::VirtualMachine) }.flatten
+          # remove all template based virtual machines
+          vms.delete_if {|v| v.config.template}
         end
 
         def get_folder_path(folder, root = nil)
