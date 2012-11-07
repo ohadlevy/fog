@@ -44,7 +44,9 @@ module Fog
 
         def initialize(attributes={} )
           super defaults.merge(attributes)
-          self.instance_uuid ||= id
+          self.instance_uuid ||= id # TODO: remvoe instance_uuid as it can be replaced with simple id
+          initialize_interfaces
+          initialize_volumes
         end
 
         def vm_reconfig_memory(options = {})
@@ -138,21 +140,11 @@ module Fog
         end
 
         def interfaces
-          if attributes[:interfaces].is_a?(Array) && attributes[:interfaces].first.is_a?(Fog::Compute::Vsphere::Interfaces)
-            attributes[:interfaces]
-          else
-            self.attributes[:interfaces] = connection.interfaces.new(
-              :connection => connection,
-              :vm => self
-            )
-          end
+          attributes[:interfaces] ||= id.nil? ? [] : connection.interfaces( :vm => self )
         end
 
         def volumes
-          self.attributes[:volumes] ||= id.nil? ? [] : Fog::Compute::Vsphere::Volumes.new(
-            :connection => connection,
-            :vm => self
-          )
+          attributes[:volumes] ||= id.nil? ? [] : connection.volumes( :vm => self )
         end
 
         def save
@@ -177,10 +169,20 @@ module Fog
             :cpus          => 1,
             :memory_mb     => 512,
             :guest_id      => 'otherGuest',
-            :instance_uuid => id,
           }
         end
 
+        def initialize_interfaces
+          if attributes[:interfaces] and attributes[:interfaces].is_a?(Array)
+            self.attributes[:interfaces].map! { |nic| nic.is_a?(Hash) ? connection.interfaces.new(nic) : nic }
+          end
+        end
+
+        def initialize_volumes
+          if attributes[:volumes] and attributes[:volumes].is_a?(Array)
+            self.attributes[:volumes].map! { |vol| vol.is_a?(Hash) ? connection.volumes.new(vol) : vol }
+          end
+        end
       end
 
     end
