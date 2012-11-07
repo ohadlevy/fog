@@ -14,6 +14,10 @@ module Fog
         attribute :filename
         attribute :size_gb
 
+        def initialize(attributes={} )
+          super defaults.merge(attributes)
+        end
+
         def size_gb
           attributes[:size_gb] ||= attributes[:size].to_i / DISK_SIZE_TO_GB if attributes[:size]
         end
@@ -23,7 +27,17 @@ module Fog
         end
 
         def to_s
-          id
+          name
+        end
+
+         private
+
+        def defaults
+          {
+            :thin=>true,
+            :name=>"Hard disk",
+            :mode=>"persistent"
+          }
         end
       end
     end
