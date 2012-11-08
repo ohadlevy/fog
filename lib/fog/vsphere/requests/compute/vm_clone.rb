@@ -75,10 +75,8 @@ module Fog
           # The template name.  The remaining elements are the folders in the
           # datacenter.
           template_name = path_elements.pop
-          # Make sure @datacenters is populated.  We need the instances from the Hash keys.
-          self.datacenters
-          # Get the datacenter managed object from the hash
-          dc = @datacenters[template_dc]
+
+          dc = find_raw_datacenter(template_dc)
           # Get the VM Folder (Group) efficiently
           vm_folder = dc.vmFolder
           # Walk the tree resetting the folder pointer as we go
