@@ -9,15 +9,15 @@ module Fog
         attribute :status
 
         def clusters
-          connection.clusters.all(:datacenter => name)
+          connection.clusters(:datacenter => name)
         end
 
         def networks
-          connection.networks.all(:datacenter => name)
+          connection.networks(:datacenter => name)
         end
 
         def datastores
-          connection.datastores.all(:datacenter => name)
+          connection.datastores(:datacenter => name)
         end
 
         def to_s
