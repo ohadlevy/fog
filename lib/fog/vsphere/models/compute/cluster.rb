@@ -15,7 +15,7 @@ module Fog
         def resource_pools
           self.attributes[:resource_pools] ||= id.nil? ? [] : Fog::Compute::Vsphere::ResourcePools.new(
             :connection => connection,
-            :cluster => name,
+            :cluster    => name,
             :datacenter => datacenter
           )
         end

@@ -5,7 +5,7 @@ module Fog
         def get_resource_pool(name, cluster_name, datacenter_name)
           resource_pool = get_raw_resource_pool(name, cluster_name, datacenter_name)
           raise(Fog::Compute::Vsphere::NotFound) unless resource_pool
-          resource_pool_attributes(resource_pool, cluster_name)
+          resource_pool_attributes(resource_pool, cluster_name, datacenter_name)
         end
 
         protected
@@ -18,7 +18,7 @@ module Fog
       end
 
       class Mock
-        def get_resource_pool(id)
+        def get_resource_pool(name, cluster_name, datacenter_name)
         end
       end
     end
