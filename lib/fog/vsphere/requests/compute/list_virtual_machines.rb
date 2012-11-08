@@ -11,7 +11,7 @@ module Fog
           elsif options['folder'] then
             list_all_virtual_machines_in_folder(options)
           else
-            list_all_virtual_machines
+            list_all_virtual_machines(options)
           end
         end
 
@@ -28,7 +28,7 @@ module Fog
           # vmFolder
           path_elements.shift if path_elements[0] == 'vm'
           # Make sure @datacenters is populated (the keys are DataCenter instances)
-          dc = find_raw_datacenter(dc_name) || raise (ArgumentError, "Could not find a Datacenter named #{dc_name}")
+          dc = find_raw_datacenter(dc_name) || raise(ArgumentError, "Could not find a Datacenter named #{dc_name}")
 
           # Get the VM Folder (Group) efficiently
           vm_folder = dc.vmFolder
@@ -57,27 +57,16 @@ module Fog
           virtual_machines
         end
 
-        def list_all_virtual_machines
-          virtual_machines = list_all_virtual_machine_mobs.collect do |vm_mob|
+        def list_all_virtual_machines(options = { })
+          datacenters = find_datacenters(options[:datacenter])
+          # TODO: go though nested folders
+          vms         = datacenters.map { |dc| dc.vmFolder.childEntity.grep(RbVmomi::VIM::VirtualMachine) }.flatten
+          # remove all template based virtual machines
+          vms.delete_if { |v| v.config.template }
+
+          vms.map do |vm_mob|
             convert_vm_mob_ref_to_attr_hash(vm_mob)
           end
-          virtual_machines
-        end
-
-
-        # NOTE: This is a private instance method required by the vm_clone
-        # request.  It's very hard to get the Managed Object Reference
-        # of a Template because we can't search for it by instance_uuid
-        # As a result, we need a list of all virtual machines, and we
-        # need them in "native" format, not filter attribute format.
-        def list_all_virtual_machine_mobs
-          vms=raw_datacenters.map { |dc| dc.vmFolder.childEntity.grep(RbVmomi::VIM::VirtualMachine) }.flatten
-          # remove all template based virtual machines
-          vms.delete_if {|v| v.config.template}
-        end
-
-        def get_nested_folders folder
-          folder.childEntity.grep RbVmomi::VIM::Folder
         end
 
         def get_folder_path(folder, root = nil)
