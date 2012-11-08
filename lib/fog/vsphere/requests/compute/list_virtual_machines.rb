@@ -7,7 +7,7 @@ module Fog
           # based on the available options we have.  These conditions are in
           # ascending order of  time to complete for large deployments.
           if options['instance_uuid'] then
-            list_all_virtual_machines_by_instance_uuid(options)
+            [connection.get_virtual_machine(options['instance_uuid'])]
           elsif options['folder'] then
             list_all_virtual_machines_in_folder(options)
           else
@@ -28,9 +28,7 @@ module Fog
           # vmFolder
           path_elements.shift if path_elements[0] == 'vm'
           # Make sure @datacenters is populated (the keys are DataCenter instances)
-          self.datacenters.include? dc_name or raise ArgumentError, "Could not find a Datacenter named #{dc_name}"
-          # Get the datacenter managed object
-          dc = @datacenters[dc_name]
+          dc = find_raw_datacenter(dc_name) || raise (ArgumentError, "Could not find a Datacenter named #{dc_name}")
 
           # Get the VM Folder (Group) efficiently
           vm_folder = dc.vmFolder
@@ -56,26 +54,14 @@ module Fog
 
           # Return the managed objects themselves as an array.  These may be converted
           # to an attribute has using convert_vm_mob_ref_to_attr_hash
-          { 'virtual_machines' => virtual_machines }
-        end
-
-        def list_all_virtual_machines_by_instance_uuid(options = {})
-          uuid = options['instance_uuid']
-          search_filter = { :uuid => uuid, 'vmSearch' => true, 'instanceUuid' => true }
-          vm_mob_ref = @connection.searchIndex.FindAllByUuid(search_filter).first
-          if vm_attribute_hash = convert_vm_mob_ref_to_attr_hash(vm_mob_ref) then
-            virtual_machines = [ vm_attribute_hash ]
-          else
-            virtual_machines = [ ]
-          end
-          { 'virtual_machines' => virtual_machines }
+          virtual_machines
         end
 
         def list_all_virtual_machines
           virtual_machines = list_all_virtual_machine_mobs.collect do |vm_mob|
             convert_vm_mob_ref_to_attr_hash(vm_mob)
           end
-          { 'virtual_machines' => virtual_machines }
+          virtual_machines
         end
 
 
@@ -85,12 +71,13 @@ module Fog
         # As a result, we need a list of all virtual machines, and we
         # need them in "native" format, not filter attribute format.
         def list_all_virtual_machine_mobs
-          # Find each datacenter
-          datacenters = @connection.rootFolder.childEntity.grep(RbVmomi::VIM::Datacenter)
-          # Next, search the "vmFolder" inventory of each data center:
-          vms=datacenters.map {|dc| dc.vmFolder.childEntity.grep(RbVmomi::VIM::VirtualMachine) }.flatten
+          vms=raw_datacenters.map { |dc| dc.vmFolder.childEntity.grep(RbVmomi::VIM::VirtualMachine) }.flatten
           # remove all template based virtual machines
           vms.delete_if {|v| v.config.template}
+        end
+
+        def get_nested_folders folder
+          folder.childEntity.grep RbVmomi::VIM::Folder
         end
 
         def get_folder_path(folder, root = nil)

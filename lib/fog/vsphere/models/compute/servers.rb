@@ -8,16 +8,20 @@ module Fog
       class Servers < Fog::Collection
 
         model Fog::Compute::Vsphere::Server
+        attr_accessor :datacenter
+        attr_accessor :network
+        attr_accessor :cluster
+        attr_accessor :resource_pool
 
-        # 'path' => '/Datacenters/vm/Jeff/Templates' will be MUCH faster.
+        # 'folder' => '/Datacenters/vm/Jeff/Templates' will be MUCH faster.
         # than simply listing everything.
-        def all(filters = {})
-          # REVISIT: I'm not sure if this is the best way to implement search
-          # filters on a collection but it does work.  I need to study the AWS
-          # code more to make sure this matches up.
-          filters['folder'] ||= attributes['folder']
-          response = connection.list_virtual_machines(filters)
-          load(response['virtual_machines'])
+        def all(filters = { })
+          load connection.list_virtual_machines(filters.merge(
+                                                  :datacenter    => datacenter,
+                                                  :cluster       => cluster,
+                                                  :network       => network,
+                                                  :resource_pool => resource_pool
+                                                ))
         end
 
         def get(id)
