@@ -17,7 +17,7 @@ module Fog
         def get(id)
           requires :datacenter
           requires :cluster
-          new connection.get_cluster(id, cluster, datacenter)
+          new connection.get_resource_pool(id, cluster, datacenter)
         end
 
       end
