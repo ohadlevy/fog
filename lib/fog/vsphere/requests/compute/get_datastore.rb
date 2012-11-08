@@ -12,12 +12,12 @@ module Fog
 
         def get_raw_datastore(name, datacenter_name)
           dc = find_raw_datacenter(datacenter_name)
-          dc.datastore.find(name)
+          dc.datastoreFolder.find(name)
         end
       end
 
       class Mock
-        def get_datastore(id)
+        def get_datastore(name, datacenter_name)
         end
       end
     end
