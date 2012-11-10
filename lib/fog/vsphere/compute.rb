@@ -30,13 +30,11 @@ module Fog
 
       request_path 'fog/vsphere/requests/compute'
       request :current_time
-      request :find_vm_by_ref
       request :list_virtual_machines
       request :vm_power_off
       request :vm_power_on
       request :vm_reboot
       request :vm_clone
-      request :vm_create
       request :vm_destroy
       request :vm_migrate
       request :list_datacenters
