@@ -19,6 +19,10 @@ module Fog
         def datastores
           connection.datastores(:datacenter => name)
         end
+        
+        def folders
+          connection.folders(:datacenter => name)
+        end
 
         def to_s
           name
