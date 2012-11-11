@@ -31,53 +31,6 @@ module Fog
           
           options
         end
-
-        def find_folder_obj(path, has_file = true)
-          # Find the folder first, as this is more efficient than
-          # searching ALL VM's looking for the template.
-          # Tap gets rid of the leading empty string and "Datacenters" element
-          # and returns the array.
-          path_elements = path.split('/').tap { |ary| ary.shift 2 }
-          # The DC name itself.
-          path_dc = path_elements.shift
-          # If the first path element contains "vm" this denotes the vmFolder
-          # and needs to be shifted out
-          path_elements.shift if path_elements[0] == 'vm'
-          # Pop the filename off if the path has one (see has_file)s
-          path_elements.pop if has_file
-          # Make sure @datacenters is populated.  We need the instances from the Hash keys.
-          self.datacenters
-          # Get the datacenter managed object from the hash
-          dc = @datacenters[path_dc]
-          # Get the VM Folder (Group) efficiently
-          vm_folder = dc.vmFolder
-          # Walk the tree resetting the folder pointer as we go
-          folder = path_elements.inject(vm_folder) do |current_folder, sub_folder_name|
-            # JJM VIM::Folder#find appears to be quite efficient as it uses the
-            # searchIndex It certainly appears to be faster than
-            # VIM::Folder#inventory since that returns _all_ managed objects of
-            # a certain type _and_ their properties.
-            sub_folder = current_folder.find(sub_folder_name, RbVmomi::VIM::Folder)
-            raise ArgumentError, "Could not descend into #{sub_folder_name}.  Please check your path: #{path}" unless sub_folder
-            sub_folder
-          end
-        end
-        
-        def find_resource_pool_obj(datacenter, cluster_name, pool_name)
-          # Pull the Resource Object
-          cluster = datacenter.find_compute_resource(cluster_name)
-          resource_pool = cluster.resourcePool.find(pool_name)
-        end
-        
-        def find_datastore_obj(datacenter, datastore_name)
-          # Pull datastore Object by name
-          datastore = datacenter.datastoreFolder.find(datastore_name)
-        end
-        
-        def find_network_obj(datacenter, network_label)
-          # Pull network label object by name
-          network_obj = datacenter.networkFolder.find(network_label)
-        end
       end
 
       class Real
@@ -89,12 +42,14 @@ module Fog
         #
         # ==== Parameters
         # * options<~Hash>:
+        #   * 'datacenter'<~String> - *REQUIRED* Your datacenter where you're
+        #     cloning. Example: 'my-datacenter-name'
         #   * 'template_path'<~String> - *REQUIRED* The path to the machine you 
-        #     want to clone FROM. (Example:
-        #     "/Datacenter/DataCenterNameHere/FolderNameHere/VMNameHere")
+        #     want to clone FROM. Example: 'aFolderNameHere/sub folder/VMNameHere'.
         #   * 'name'<~String> - *REQUIRED* The VMName of the Destination  
         #   * 'dest_folder'<~String> - Destination Folder of where 'name' will
-        #     be placed on your cluster.
+        #     be placed on your cluster. Example: 'myfolder/some/subfolder'.
+        #     Only clones to the same datacenter. 
         #   * 'power_on'<~Boolean> - Whether to power on machine after clone. 
         #     Defaults to true.
         #   * 'wait'<~Boolean> - Whether the method should wait for the virtual
@@ -107,15 +62,16 @@ module Fog
         #     same datacenter as where you're cloning from. Datacenter grabbed
         #     from template_path option. 
         #     Example: ['cluster_name_here','resource_pool_name_here']
-        #   * 'datastore'<~String> - The datastore you'd like to use.
-        #       (datacenterObj.datastoreFolder.find('name') in API)
+        #   * 'datastore'<~String> - The datastore name you'd like to use. Must
+        #     be in the same datacenter as the dest_folder.
         #   * 'transform'<~String> - Not documented - see http://www.vmware.com/support/developer/vc-sdk/visdk41pubs/ApiReference/vim.vm.RelocateSpec.html
         #   * customization_spec<~Hash>: Options are marked as required if you
         #     use this customization_spec. Static IP Settings not configured.
         #     This only support cloning and setting DHCP on the first interface
+        #     and also only supports Linux. 
         #     * 'domain'<~String> - *REQUIRED* This is put into 
-        #       /etc/resolve.conf (we hope)
-        #     * 'hostname'<~String> - Hostname of the Guest Os - default is 
+        #       /etc/resolve.conf
+        #     * 'hostname'<~String> - Hostname of the Guest OS - default is 
         #       options['name']
         #     * 'hw_utc_clock'<~Boolean> - *REQUIRED* Is hardware clock UTC? 
         #       Default true
@@ -129,50 +85,13 @@ module Fog
           # Comment needed
           notfound = lambda { raise Fog::Compute::Vsphere::NotFound, "Could not find VM template" }
 
-          # Find the template in the folder.  This is more efficient than
-          # searching ALL VM's looking for the template.
-          # Tap gets rid of the leading empty string and "Datacenters" element
-          # and returns the array.
-          path_elements = template_path.split('/').tap { |ary| ary.shift 2 }
-          # The DC name itself.
-          template_dc = path_elements.shift
-          # If the first path element contains "vm" this denotes the vmFolder
-          # and needs to be shifted out
-          path_elements.shift if path_elements[0] == 'vm'
-          # The template name.  The remaining elements are the folders in the
-          # datacenter.
-          template_name = path_elements.pop
-
-          dc = find_raw_datacenter(template_dc)
-          # Get the VM Folder (Group) efficiently
-          vm_folder = dc.vmFolder
-          # Walk the tree resetting the folder pointer as we go
-          folder = path_elements.inject(vm_folder) do |current_folder, sub_folder_name|
-            # JJM VIM::Folder#find appears to be quite efficient as it uses the
-            # searchIndex It certainly appears to be faster than
-            # VIM::Folder#inventory since that returns _all_ managed objects of
-            # a certain type _and_ their properties.
-            sub_folder = current_folder.find(sub_folder_name, RbVmomi::VIM::Folder)
-            raise ArgumentError, "Could not descend into #{sub_folder_name}.  Please check your path." unless sub_folder
-            sub_folder
-          end
-          # Grab what datacenter we're dealing with
-          self.datacenters
-          # Ugly, sorry
-          datacenter_obj = @datacenters[options['template_path'].split('/').tap{|a| a.shift 2}[0]]
-
-          # Options['template_path']<~String>
-          # Grab the folder Object for the Template
-          template_folder = find_folder_obj(options['template_path'])
-          # The template name.  The remaining elements are the folders in the
-          # datacenter.
-          template_name = options['template_path'].split('/').last
-          # Now find the template itself using the efficient find method
-          vm_mob_ref = template_folder.find(template_name, RbVmomi::VIM::VirtualMachine)
+          # Options['template_path'] && Options['datacenter']
+          # Grab the template or Node you're cloning from
+          vm_mob_ref = get_raw_virtual_machine(options['template_path'], options['datacenter'])
 
           # Options['dest_folder']<~String>
           # Grab the destination folder object if it exists else use cloned mach
-          dest_folder = find_folder_obj(options['dest_folder'], false) if options.has_key?('dest_folder')
+          dest_folder = get_raw_folder(options['dest_folder']) if options.has_key?('dest_folder')
           dest_folder ||= vm_mob_ref.parent
 
           # Options['resource_pool']<~Array>
@@ -180,7 +99,7 @@ module Fog
           if ( options.has_key?('resource_pool') && options['resource_pool'].is_a?(Array) && options['resource_pool'].length == 2 )
             cluster_name = options['resource_pool'][0]
             pool_name = options['resource_pool'][1]
-            resource_pool = find_resource_pool_obj(datacenter_obj, cluster_name, pool_name)
+            resource_pool = get_resource_pool(pool_name, cluster_name, options['datacenter'])
           elsif ( vm_mob_ref.resourcePool == nil )
             # If the template is really a template then there is no associated resource pool,
             # so we need to find one using the template's parent host or cluster
@@ -197,7 +116,7 @@ module Fog
 
           # Options['datastore']<~String>
           # Grab the datastore object if option is set
-          datastore_obj = find_datastore_obj(datacenter_obj, options['datastore']) if options.has_key?('datastore')
+          datastore_obj = get_raw_datastore(options['datastore'], options['datacenter']) if options.has_key?('datastore')
           # confirm nil if nil or option is not set
           datastore_obj ||= nil
 

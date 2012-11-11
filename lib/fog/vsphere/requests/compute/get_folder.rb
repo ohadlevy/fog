@@ -13,7 +13,7 @@ module Fog
         def get_raw_folder(path, datacenter_name)
           # The required path syntax - 'topfolder/subfolder/anotherfolder'
           path_ary = path.split('/')
-          dc = find_raw_datacenter(datacenter_name)
+          dc = get_raw_datacenter(datacenter_name)
           dc_root_folder = dc.vmFolder
 
           # Walk the tree resetting the folder pointer as we go
@@ -24,7 +24,7 @@ module Fog
             # a certain type _and_ their properties.
             # NH: renamed some vars.
             sub = last_returned_folder.find(sub_folder, RbVmomi::VIM::Folder)
-            raise ArgumentError, "Could not descend into #{sub_folder_name}.  Please check your path. #{path}" unless sub
+            raise ArgumentError, "Could not descend into #{sub_folder}.  Please check your path. #{path}" unless sub
             sub
           end
         end
