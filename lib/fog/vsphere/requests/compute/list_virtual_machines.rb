@@ -8,8 +8,8 @@ module Fog
           # ascending order of  time to complete for large deployments.
           if options['instance_uuid'] then
             [connection.get_virtual_machine(options['instance_uuid'])]
-          elsif options['folder'] then
-            list_all_virtual_machines_in_folder(options)
+          elsif options[:path] && options[:datacenter] then
+            list_all_virtual_machines_in_folder(options[:path], options[:datacenter])
           else
             list_all_virtual_machines(options)
           end
@@ -17,32 +17,9 @@ module Fog
 
         private
 
-        def list_all_virtual_machines_in_folder(options = {})
-          # Tap gets rid of the leading empty string and "Datacenters" element
-          # and returns the array.
-          path_elements = options['folder'].split('/').tap { |ary| ary.shift 2 }
-          # The DC name itself.
-          dc_name = path_elements.shift
-          # If the first path element contains "vm" this denotes the vmFolder
-          # and needs to be shifted out since each DC contains only one
-          # vmFolder
-          path_elements.shift if path_elements[0] == 'vm'
-          # Make sure @datacenters is populated (the keys are DataCenter instances)
-          dc = find_raw_datacenter(dc_name) || raise(ArgumentError, "Could not find a Datacenter named #{dc_name}")
-
-          # Get the VM Folder (Group) efficiently
-          vm_folder = dc.vmFolder
-
-          # Walk the tree resetting the folder pointer as we go
-          folder = path_elements.inject(vm_folder) do |current_folder, sub_folder_name|
-            # JJM VIM::Folder#find appears to be quite efficient as it uses the
-            # searchIndex It certainly appears to be faster than
-            # VIM::Folder#inventory since that returns _all_ managed objects of
-            # a certain type _and_ their properties.
-            sub_folder = current_folder.find(sub_folder_name, RbVmomi::VIM::Folder)
-            raise ArgumentError, "Could not descend into #{sub_folder_name}.  Please check your path." unless sub_folder
-            sub_folder
-          end
+        def list_all_virtual_machines_in_folder(path, datacenter_name)
+          # backwards compatibility
+          folder = get_raw_folder(path, datacenter_name)
 
           # This should be efficient since we're not obtaining properties
           virtual_machines = folder.children.inject([]) do |ary, child|

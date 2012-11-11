@@ -30,11 +30,15 @@ module Fog
         end
         
         def folder_attributes(folder, datacenter_name)
+          # Ugly but it's the only way to reget path?
+          path = folder.path.each.inject([]) { |p,e| p << e.last } - ["Datacenters","vm", datacenter_name]
+          path = path.join('/')
           {
             :id       => managed_obj_id(folder),
             :name     => folder.name,
             :parent   => folder.parent.name,
             :datacenter => datacenter_name,
+            :path     => path, 
           }
         end
       end
