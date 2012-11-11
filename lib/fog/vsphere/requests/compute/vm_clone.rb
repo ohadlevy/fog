@@ -120,8 +120,9 @@ module Fog
           # confirm nil if nil or option is not set
           datastore_obj ||= nil
 
-          # Options['network']
-          # Build up the config spec
+          # Options['network'] ## REVISE ME
+          # Build up the config spec - should be based on original vm
+          # by finding first network device number.
           if ( options.has_key?('network_label') )
             network_obj = datacenter_obj.networkFolder.find(options['network_label'])
             config_spec_operation = RbVmomi::VIM::VirtualDeviceConfigSpecOperation('edit')
