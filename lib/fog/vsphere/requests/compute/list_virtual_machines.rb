@@ -19,7 +19,7 @@ module Fog
 
         def list_all_virtual_machines_in_folder(path, datacenter_name)
           # backwards compatibility
-          folder = get_raw_folder(path, datacenter_name)
+          folder = get_raw_vmfolder(path, datacenter_name)
 
           # This should be efficient since we're not obtaining properties
           virtual_machines = folder.children.inject([]) do |ary, child|

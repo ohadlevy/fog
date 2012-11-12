@@ -10,9 +10,25 @@ module Fog
         model Fog::Compute::Vsphere::Folder
         attr_accessor :datacenter
 
-        def get(id)
+        def all(filters = {})
+          load connection.list_vmfolders(filters)
+        end
+
+        def get(id, filters = {})
           requires :datacenter
-          new connection.get_folder(id, datacenter)
+          filters.merge!(:datacenter => filters[:datacenter])
+          type = filters[:type]
+          type ||= 'vm'
+          case type
+          when 'vm'
+            new connection.get_vmfolder(id, filters)
+          when 'network'
+            # augment me!
+          when 'datastore'
+            #add moar
+          else
+            raise ArgumentError, "#{type} is unknown"
+          end
         end
 
       end

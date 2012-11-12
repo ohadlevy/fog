@@ -23,7 +23,7 @@ module Fog
               vm_name = path_ary.pop
               path = path_ary.join('/')
               # try to find based on VM name if datacenter is set
-              folder = get_raw_folder(path, datacenter_name)
+              folder = get_raw_vmfolder(path, datacenter_name)
               vm = folder.find(vm_name, RbVmomi::VIM::VirtualMachine)
               raise Fog::Compute::Vsphere::NotFound, "#{id} was not found or returned as a folder" unless vm
             end

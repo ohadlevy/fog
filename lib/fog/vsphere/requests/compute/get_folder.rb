@@ -2,15 +2,15 @@ module Fog
   module Compute
     class Vsphere
       class Real
-        def get_folder(path, datacenter_name)
-          folder = get_raw_folder(path, datacenter_name)
+        def get_vmfolder(path, datacenter_name)
+          folder = get_raw_vmfolder(path, datacenter_name)
           raise(Fog::Compute::Vsphere::NotFound) unless folder
           folder_attributes(folder, datacenter_name)
         end
         
         protected
         
-        def get_raw_folder(path, datacenter_name)
+        def get_raw_vmfolder(path, datacenter_name)
           # The required path syntax - 'topfolder/subfolder/anotherfolder'
           path_ary = path.split('/')
           dc = get_raw_datacenter(datacenter_name)

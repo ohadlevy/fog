@@ -50,6 +50,7 @@ module Fog
       request :list_datastores
       request :get_datastore
       request :get_folder
+      request :list_folders
       request :create_vm
       request :list_vm_interfaces
       request :list_vm_volumes

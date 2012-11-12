@@ -91,7 +91,7 @@ module Fog
 
           # Options['dest_folder']<~String>
           # Grab the destination folder object if it exists else use cloned mach
-          dest_folder = get_raw_folder(options['dest_folder']) if options.has_key?('dest_folder')
+          dest_folder = get_raw_vmfolder(options['dest_folder']) if options.has_key?('dest_folder')
           dest_folder ||= vm_mob_ref.parent
 
           # Options['resource_pool']<~Array>
