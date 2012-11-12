@@ -91,7 +91,7 @@ module Fog
 
           # Options['dest_folder']<~String>
           # Grab the destination folder object if it exists else use cloned mach
-          dest_folder = get_raw_vmfolder(options['dest_folder']) if options.has_key?('dest_folder')
+          dest_folder = get_raw_vmfolder(options['dest_folder'], options['datacenter']) if options.has_key?('dest_folder')
           dest_folder ||= vm_mob_ref.parent
 
           # Options['resource_pool']<~Array>
@@ -99,7 +99,7 @@ module Fog
           if ( options.has_key?('resource_pool') && options['resource_pool'].is_a?(Array) && options['resource_pool'].length == 2 )
             cluster_name = options['resource_pool'][0]
             pool_name = options['resource_pool'][1]
-            resource_pool = get_resource_pool(pool_name, cluster_name, options['datacenter'])
+            resource_pool = get_raw_resource_pool(pool_name, cluster_name, options['datacenter'])
           elsif ( vm_mob_ref.resourcePool == nil )
             # If the template is really a template then there is no associated resource pool,
             # so we need to find one using the template's parent host or cluster
@@ -120,7 +120,8 @@ module Fog
           # confirm nil if nil or option is not set
           datastore_obj ||= nil
 
-          # Options['network'] ## REVISE ME
+          # Options['network'] ## REVISE ME should look up nic, 
+          #  instead of requesting options['network_adapter_device_key']
           # Build up the config spec - should be based on original vm
           # by finding first network device number.
           if ( options.has_key?('network_label') )
@@ -136,7 +137,7 @@ module Fog
             device = RbVmomi::VIM::VirtualE1000(
               :backing => nic_backing_info,
               :deviceInfo => RbVmomi::VIM::Description(:label => "Network adapter 1", :summary => options['network_label']),
-              :key => options['network_adapter_device_key'],
+              :key => options['network_adapter_device_key'], #Super hack - this should really lookup the first ID not request the user knows the key
               :connectable => connectable)
             device_spec = RbVmomi::VIM::VirtualDeviceConfigSpec(
               :operation => config_spec_operation,

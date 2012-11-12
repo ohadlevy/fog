@@ -13,7 +13,8 @@ module Fog
           # or uuid
           if datacenter_name
             if id =~ /[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/
-              vm = @connection.searchIndex.FindByUuid :uuid => id, :vmSearch => true, :instanceUuid => true, :datacenter => datacenter_name
+              datacenter_obj = get_raw_datacenter(datacenter_name)
+              vm = @connection.searchIndex.FindByUuid :uuid => id, :vmSearch => true, :instanceUuid => true, :datacenter => datacenter_obj
             else
               # The required path syntax - 
               # 'topfolder/subfolder/anotherfolder/vmname'
