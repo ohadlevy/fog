@@ -11,7 +11,7 @@ module Fog
         def get_vm_ref(id, datacenter_name = nil)
           # The required id syntax - 'topfolder/subfolder/anotherfolder'
           # or uuid
-          if datacenter
+          if datacenter_name
             if id =~ /[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/
               vm = @connection.searchIndex.FindByUuid :uuid => id, :vmSearch => true, :instanceUuid => true, :datacenter => datacenter_name
             else
@@ -28,8 +28,10 @@ module Fog
               raise Fog::Compute::Vsphere::NotFound, "#{id} was not found or returned as a folder" unless vm
             end
           else
-            # Don't believe this works needs test
-            raw_datacenters.map { |d| d.find_vm(id) }.compact.first
+            # Works but assumes all names are unique, could return multiple
+            # results from different Datacenters. Also id should be relative
+            # datacenter path (eg: 'Templates/VMName Here')
+            vm = raw_datacenters.map { |d| d.find_vm(id) }.compact.first
           end
           vm ? vm : raise(Fog::Compute::Vsphere::NotFound, "#{id} was not found")
         end
