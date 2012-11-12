@@ -17,6 +17,7 @@ module Fog
         end
 
         def get(id, filters = {})
+          require :datacenter
           new connection.get_folder(id, filters.merge(:datacenter => datacenter, :type => type))
         end
 
