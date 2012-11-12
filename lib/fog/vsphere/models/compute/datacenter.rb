@@ -20,8 +20,8 @@ module Fog
           connection.datastores(:datacenter => name)
         end
         
-        def vm_folders
-          connection.folders(:datacenter => name, :type => 'vm')
+        def vm_folders(path = '')
+          connection.folders(:datacenter => name, :type => 'vm', :path => path)
         end
 
         # Not Implemented

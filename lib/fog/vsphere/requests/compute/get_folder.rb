@@ -2,10 +2,25 @@ module Fog
   module Compute
     class Vsphere
       class Real
-        def get_vmfolder(path, datacenter_name)
-          folder = get_raw_vmfolder(path, datacenter_name)
-          raise(Fog::Compute::Vsphere::NotFound) unless folder
-          folder_attributes(folder, datacenter_name)
+        def get_folder(path, filters = {})
+          datacenter_name = filters[:datacenter] || raise(ArgumentError, "Needs datacenter!")
+          type = filters[:type]
+          type ||= 'vm'
+          
+          # Cycle through all types of folders. 
+          case type
+          when 'vm'
+            # if you're a vm then grab the VM. 
+            folder = get_raw_vmfolder(path, datacenter_name)
+            raise(Fog::Compute::Vsphere::NotFound) unless folder
+            folder_attributes(folder, datacenter_name)
+          when 'network'
+            # augment me!
+          when 'datastore'
+            #add moar
+          else
+            raise ArgumentError, "#{type} is unknown"
+          end
         end
         
         protected

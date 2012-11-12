@@ -20,15 +20,15 @@ module Fog
         #  mydc = vspconn.datacenters.first
         #  folders = mydc.vm_folders
         #
-        def list_vmfolders(filters = {})
+        def list_folders(filters = {})
           path = filters[:path]
           path ||= ''
           datacenter_name = filters[:datacenter]
           folders = get_raw_vmfolders(path, datacenter_name)
           raise(Fog::Compute::Vsphere::NotFound) unless folders.is_a? Array
-          folder_list = folders.each.inject({}) do |h,f|
-            h[f.name] = folder_attributes(f, datacenter_name)
-            h
+          folder_list = folders.each.inject([]) do |a,f|
+            a << folder_attributes(f, datacenter_name)
+            a
           end
           raise(Fog::Compute::Vsphere::NotFound, "Folder #{path} has no subfolders") if folder_list.empty?
           folder_list
