@@ -30,7 +30,8 @@ module Fog
         end
         
         def folder_attributes(folder, datacenter_name)
-          # Ugly but it's the only way to reget path?
+          # Ugly but it's the only way to get flat 
+          # relative path from Datacenter
           path = folder.path.each.inject([]) { |p,e| p << e.last } - ["Datacenters","vm", datacenter_name]
           path = path.join('/')
           {
