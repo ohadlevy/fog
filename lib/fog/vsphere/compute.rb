@@ -27,6 +27,8 @@ module Fog
       collection :networks
       model :datastore
       collection :datastores
+      model :folder
+      collection :folders
 
       request_path 'fog/vsphere/requests/compute'
       request :current_time
@@ -47,6 +49,8 @@ module Fog
       request :get_network
       request :list_datastores
       request :get_datastore
+      request :get_folder
+      request :list_folders
       request :create_vm
       request :list_vm_interfaces
       request :list_vm_volumes

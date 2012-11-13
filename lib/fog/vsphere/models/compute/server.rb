@@ -94,7 +94,7 @@ module Fog
         end
 
         def clone(options = {})
-          requires :name, :path
+          requires :name, :datacenter
           # Convert symbols to strings
           req_options = options.inject({}) { |hsh, (k,v)| hsh[k.to_s] = v; hsh }
           # Give our path to the request

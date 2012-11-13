@@ -24,8 +24,8 @@ module Fog
                                                 ))
         end
 
-        def get(id)
-          new connection.get_virtual_machine id
+        def get(id, datacenter = nil)
+          new connection.get_virtual_machine id, datacenter
         rescue Fog::Compute::Vsphere::NotFound
           nil
         end
