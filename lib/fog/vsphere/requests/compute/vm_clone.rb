@@ -79,15 +79,12 @@ module Fog
         #       are valid - example: 'America/Denver'
         #
         def vm_clone(options = {})
-          # Option handling
-          options = vm_clone_check_options(options)
-
           # Comment needed
           notfound = lambda { raise Fog::Compute::Vsphere::NotFound, "Could not find VM template" }
 
           # Options['template_path'] && Options['datacenter']
           # Grab the template or Node you're cloning from
-          vm_mob_ref = get_raw_virtual_machine(options['template_path'], options['datacenter'])
+          vm_mob_ref = get_vm_ref(options['template_path'], options['datacenter'])
 
           # Options['dest_folder']<~String>
           # Grab the destination folder object if it exists else use cloned mach
@@ -125,6 +122,7 @@ module Fog
           # Build up the config spec - should be based on original vm
           # by finding first network device number.
           if ( options.has_key?('network_label') )
+            datacenter_obj = get_raw_datacenter(options['datacenter'])
             network_obj = datacenter_obj.networkFolder.find(options['network_label'])
             config_spec_operation = RbVmomi::VIM::VirtualDeviceConfigSpecOperation('edit')
             nic_backing_info = RbVmomi::VIM::VirtualEthernetCardNetworkBackingInfo(:deviceName => options['network_label'])
